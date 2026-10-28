@@ -39,11 +39,7 @@ from litellm.constants import (
 )
 from litellm.exceptions import MidStreamFallbackError, RateLimitError
 from litellm.litellm_core_utils.asyncify import run_async_function
-from litellm.litellm_core_utils.core_helpers import (
-    process_response_headers,
-    provider_reported_usage_cost,
-    set_response_cost_in_hidden_params,
-)
+from litellm.litellm_core_utils.core_helpers import process_response_headers
 from litellm.litellm_core_utils.exception_mapping_utils import with_deployment_api_base
 from litellm.litellm_core_utils.hidden_params import get_hidden_params
 from litellm.litellm_core_utils.internal_call_metadata import (
@@ -1829,9 +1825,7 @@ def _estimate_usage_safely(
 
 def normalize_responses_usage(response_obj: ResponsesAPIResponse | None, logging_obj: LiteLLMLoggingObj | None) -> None:
     """A terminal response built off an untyped dict carries its usage as a dict, logging and the proxy read a model.
-    The bill the logging object prices for it rides its hidden ``response_cost``, so the proxy shows the same number.
-    It is priced on a copy shaped the way the success handler shapes the spend row's result, the reported
-    ``usage.cost`` in the response-cost header and the usage in chat shape, so both read the same number."""
+    The bill the logging object prices for it rides its hidden ``response_cost``, so the proxy shows the same number."""
     if response_obj is None:
         return
     usage_obj: Final[ResponseAPIUsage | None] = _usage_as_model(getattr(response_obj, "usage", None))
@@ -1840,14 +1834,8 @@ def normalize_responses_usage(response_obj: ResponsesAPIResponse | None, logging
     response_obj.usage = usage_obj  # rebind-ok: the typed usage has to ride on the response the client receives
     if logging_obj is None:
         return
-    priced: Final = response_obj.model_copy()
-    priced.hidden_params = {}
-    set_response_cost_in_hidden_params(
-        priced, provider_reported_usage_cost(usage_obj, logging_obj.model_call_details.get("custom_llm_provider"))
-    )
-    setattr(priced, "usage", ResponseAPILoggingUtils.transform_response_api_usage_to_chat_usage(usage_obj))
     try:
-        bill: Final = logging_obj.response_cost_calculator(result=priced)
+        bill: Final = logging_obj.response_cost_calculator(result=response_obj)
     except Exception:  # noqa: BLE001  # a pricing failure leaves the client usage as the upstream sent it
         return
     hidden: Final = get_hidden_params(response_obj)
