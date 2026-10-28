@@ -5423,9 +5423,10 @@ def test_stream_chunk_builder_bills_the_margin_over_the_xai_reported_cost_it_lea
     )
 
     assert response is not None
-    assert getattr(response.usage, "cost", None) == pytest.approx(0.42)
-    assert response._hidden_params.get("response_cost") is None
+    assert getattr(response.usage, "cost", None) == pytest.approx(0.42), "the upstream's figure stays in usage.cost"
+    assert response._hidden_params.get("response_cost") == pytest.approx(0.63)
     assert logging_obj.response_cost_calculator(result=response) == pytest.approx(0.63)
+    assert logging_obj.response_cost_calculator(result=response, ignore_stamped_cost=True) == pytest.approx(0.63)
 
 
 def test_speech_mistral_dispatches_and_decodes_audio(respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch):
