@@ -1585,9 +1585,4 @@ def test_the_partial_response_billed_on_disconnect_carries_the_logging_objects_b
     assert partial is not None
     hidden: Final = get_hidden_params(partial.response)
     assert hidden is not None and hidden["response_cost"] == 0.00032
-    priced: Final = wrapper.logging_obj.response_cost_calculator.call_args.kwargs["result"]
-    assert priced.id == partial.response.id
-    assert (priced.usage.prompt_tokens, priced.usage.completion_tokens) == (
-        partial.response.usage.input_tokens,
-        partial.response.usage.output_tokens,
-    ), "the bill is priced on the partial's own usage"
+    assert wrapper.logging_obj.response_cost_calculator.call_args.kwargs["result"] is partial.response
